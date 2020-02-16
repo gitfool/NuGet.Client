@@ -20,8 +20,6 @@ namespace NuGet.Packaging
         private string _minClientVersionString;
 
         private IEnumerable<string> _authors = Enumerable.Empty<string>();
-        private IEnumerable<string> _owners = Enumerable.Empty<string>();
-
         private string _iconUrl;
         private string _licenseUrl;
         private string _projectUrl;
@@ -39,7 +37,7 @@ namespace NuGet.Packaging
             Version = copy.Version;
             Title = copy.Title?.Trim();
             Authors = copy.Authors;
-            Owners = copy.Owners;
+            Owners = copy.Owners.Any() ? copy.Owners : null;
             Tags = string.IsNullOrEmpty(copy.Tags) ? null : copy.Tags.Trim();
             Serviceable = copy.Serviceable;
             _licenseUrl = copy.LicenseUrl?.OriginalString;
@@ -95,11 +93,7 @@ namespace NuGet.Packaging
             set { _authors = value ?? Enumerable.Empty<string>(); }
         }
 
-        public IEnumerable<string> Owners
-        {
-            get { return (_owners == null || !_owners.Any()) ? _authors : _owners; }
-            set { _owners = value ?? Enumerable.Empty<string>(); }
-        }
+        public IEnumerable<string> Owners { get; set; }
 
         // The (Icon/License/Project)Url properties have backing strings as we need to be able to differentiate
         //   between the property not being set (valid) and set to an empty value (invalid). 
