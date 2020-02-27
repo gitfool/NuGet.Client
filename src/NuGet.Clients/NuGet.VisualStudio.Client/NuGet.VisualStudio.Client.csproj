@@ -370,6 +370,7 @@
       <ExcludeAssets>all</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonVersionCore)" NoWarn="NU1605" />
+    <PackageReference Include="Microsoft.ServiceHub.Framework" Version="$(ServiceHubFrameworkVersion)" NoWarn="NU1605"/>
   </ItemGroup>
   <Target Name="AfterBuild" DependsOnTargets="PublishVS" />
   <Target Name="PublishVS">

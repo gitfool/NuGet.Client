@@ -5,9 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.Threading;
 using NuGet.VisualStudio;
 
 namespace NuGetConsole
@@ -16,13 +15,12 @@ namespace NuGetConsole
     public class OutputConsoleProvider : IOutputConsoleProvider
     {
         private readonly IEnumerable<Lazy<IHostProvider, IHostMetadata>> _hostProviders;
-        private readonly AsyncLazy<IVsOutputWindow> _vsOutputWindow;
-        private readonly AsyncLazy<IVsUIShell> _vsUIShell;
         private readonly Lazy<IConsole> _cachedOutputConsole;
+        private IAsyncServiceProvider _asyncServiceProvider;
 
-        private IVsOutputWindow VsOutputWindow => NuGetUIThreadHelper.JoinableTaskFactory.Run(_vsOutputWindow.GetValueAsync);
-
-        private IVsUIShell VsUIShell => NuGetUIThreadHelper.JoinableTaskFactory.Run(_vsUIShell.GetValueAsync);
+        // TODO NK - Clearly understand the PMC scenario.
+        // TODO NK - Fix the build output channel, it shouldn't be cleaned, ever!
+        // TODO NK - It's actually difficult to bring focus!
 
         [ImportingConstructor]
         OutputConsoleProvider(
@@ -32,42 +30,19 @@ namespace NuGetConsole
         { }
 
         OutputConsoleProvider(
-            Microsoft.VisualStudio.Shell.IAsyncServiceProvider asyncServiceProvider, // ambigiuous reference
+            IAsyncServiceProvider asyncServiceProvider,
             IEnumerable<Lazy<IHostProvider, IHostMetadata>> hostProviders)
         {
-            if (asyncServiceProvider == null)
-            {
-                throw new ArgumentNullException(nameof(asyncServiceProvider));
-            }
-
-            if (hostProviders == null)
-            {
-                throw new ArgumentNullException(nameof(hostProviders));
-            }
-
-            _hostProviders = hostProviders;
-
-            _vsOutputWindow = new AsyncLazy<IVsOutputWindow>(
-                async () =>
-                {
-                    return await asyncServiceProvider.GetServiceAsync<SVsOutputWindow, IVsOutputWindow>();
-                },
-                NuGetUIThreadHelper.JoinableTaskFactory);
-
-            _vsUIShell = new AsyncLazy<IVsUIShell>(
-                async () =>
-                {
-                    return await asyncServiceProvider.GetServiceAsync<SVsUIShell, IVsUIShell>();
-                },
-                NuGetUIThreadHelper.JoinableTaskFactory);
+            _asyncServiceProvider = asyncServiceProvider ?? throw new ArgumentNullException(nameof(asyncServiceProvider));
+            _hostProviders = hostProviders ?? throw new ArgumentNullException(nameof(hostProviders));
 
             _cachedOutputConsole = new Lazy<IConsole>(
-                () => new OutputConsole(VsOutputWindow, VsUIShell));
+                () => new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName));
         }
 
         public IOutputConsole CreateBuildOutputConsole()
         {
-            return new BuildOutputConsole(VsOutputWindow);
+            return new ChannelOutputConsole(_asyncServiceProvider, VSConstants.BuildOutput.ToString(), "Build");
         }
 
         public IOutputConsole CreatePackageManagerConsole()
@@ -77,15 +52,9 @@ namespace NuGetConsole
 
         public IConsole CreatePowerShellConsole()
         {
-            return CreateOutputConsole(requirePowerShellHost: true);
-        }
-
-        public IConsole CreateOutputConsole(bool requirePowerShellHost)
-        {
             var console = _cachedOutputConsole.Value;
 
-            // only instantiate the PS host if necessary (e.g. when package contains PS script files)
-            if (requirePowerShellHost && console.Host == null)
+            if (console.Host == null)
             {
                 var hostProvider = GetPowerShellHostProvider();
                 console.Host = hostProvider.CreateHost(@async: false);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 namespace NuGet.VisualStudio
@@ -22,13 +22,5 @@ namespace NuGet.VisualStudio
         /// </summary>
         /// <returns>Console instance.</returns>
         IConsole CreatePowerShellConsole();
-
-        /// <summary>
-        /// Back-compat API for creating a PM output console.
-        /// </summary>
-        /// <param name="requirePowerShellHost">Creates a console with host attached if true.</param>
-        /// <returns>Console instance.</returns>
-        [System.Obsolete("Method is deprecated")]
-        IConsole CreateOutputConsole(bool requirePowerShellHost);
     }
 }
