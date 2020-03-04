@@ -130,6 +130,7 @@ namespace NuGetVSExtension
 
         private int GetMSBuildVerbosityLevel()
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             var properties = _dte.get_Properties(DTEEnvironmentCategory, DTEProjectPage);
             var value = properties.Item(MSBuildVerbosityKey).Value;
             if (value is int)

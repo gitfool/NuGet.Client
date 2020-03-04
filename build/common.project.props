@@ -52,8 +52,13 @@
     <VSFrameworkVersion>16.5.29714.20</VSFrameworkVersion>
     <VSServicesVersion>16.153.0</VSServicesVersion>
     <VSComponentsVersion>16.4.280</VSComponentsVersion>
+<<<<<<< HEAD
     <VSThreadingVersion>16.5.126</VSThreadingVersion>
     <ServiceHubFrameworkVersion>2.3.56</ServiceHubFrameworkVersion>
+=======
+    <VSSDKBuildToolsVersion>16.4.1059</VSSDKBuildToolsVersion>
+    <VSThreadingVersion>16.4.43</VSThreadingVersion>
+>>>>>>> cbd35346a... [skip ci] Use PackageReference instead of bootstrapping the SDK
     <SystemPackagesVersion>4.3.0</SystemPackagesVersion>
     <NewtonsoftJsonVersionCore Condition="$(NewtonsoftJsonPackageVersion) == ''">9.0.1</NewtonsoftJsonVersionCore>
     <NewtonsoftJsonVersionCore Condition="$(NewtonsoftJsonPackageVersion) != ''">$(NewtonsoftJsonPackageVersion)</NewtonsoftJsonVersionCore>
@@ -115,8 +120,6 @@
   <PropertyGroup>
     <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
     <DefineConstants>$(DefineConstants);VS15</DefineConstants>
-    <VSSDKRoot>$(RepositoryRootDirectory)packages\microsoft.vssdk.buildtools\15.9.3032</VSSDKRoot>
-    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(VSSDKRoot)\tools</VSToolsPath>
     <VsixOutputDirName>VS15</VsixOutputDirName>
     <CodeAnalysisRuleSet Condition="'$(CodeAnalysisRuleSet)' == ''">$(BuildCommonDirectory)NuGet.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>

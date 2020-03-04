@@ -177,6 +177,7 @@ namespace NuGet.SolutionRestoreManager
                     {
                         await _logger.DoAsync((l, _) =>
                         {
+                            ThreadHelper.ThrowIfNotOnUIThread();
                             _status = NuGetOperationStatus.Failed;
                             l.ShowError(Resources.SolutionIsNotSaved);
                             l.WriteLine(VerbosityLevel.Minimal, Resources.SolutionIsNotSaved);
@@ -302,6 +303,7 @@ namespace NuGet.SolutionRestoreManager
                     {
                         await _logger.DoAsync((l, _) =>
                         {
+                            ThreadHelper.ThrowIfNotOnUIThread();
                             var message = string.Format(
                                 CultureInfo.CurrentCulture,
                                 Resources.RelativeGlobalPackagesFolder,
@@ -377,6 +379,7 @@ namespace NuGet.SolutionRestoreManager
                 // Log an error when restore is disabled and user explicitly restore.
                 await _logger.DoAsync((l, _) =>
                 {
+                    ThreadHelper.ThrowIfNotOnUIThread();
                     l.ShowError(Resources.PackageRefNotRestoredBecauseOfNoConsent);
                 });
             }
@@ -439,6 +442,7 @@ namespace NuGet.SolutionRestoreManager
 
                 _logger.Do((l, _) =>
                 {
+                    ThreadHelper.ThrowIfNotOnUIThread();
                     foreach (var projectName in args.ProjectNames)
                     {
                         var exceptionMessage =
@@ -485,6 +489,7 @@ namespace NuGet.SolutionRestoreManager
                     {
                         await _logger.DoAsync((l, _) =>
                         {
+                            ThreadHelper.ThrowIfNotOnUIThread();
                             l.ShowError(Resources.SolutionIsNotSaved);
                             l.WriteLine(VerbosityLevel.Quiet, Resources.SolutionIsNotSaved);
                         });
@@ -559,7 +564,10 @@ namespace NuGet.SolutionRestoreManager
                 {
                     foreach (var logItem in validationLogs)
                     {
+                        // TODO NK - This is dumb, why does this need to be a UI thread?
+#pragma warning disable VSTHRD010
                         _logger.Log(logItem);
+#pragma warning restore VSTHRD010
                     }
                 }
             }
@@ -577,6 +585,7 @@ namespace NuGet.SolutionRestoreManager
             {
                 await _logger.DoAsync((l, _) =>
                 {
+                    ThreadHelper.ThrowIfNotOnUIThread();
                     var errorText = string.Format(
                         CultureInfo.CurrentCulture,
                         Resources.PackageNotRestoredBecauseOfNoConsent,
