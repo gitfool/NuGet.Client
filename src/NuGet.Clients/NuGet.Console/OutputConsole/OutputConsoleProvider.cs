@@ -19,7 +19,6 @@ namespace NuGetConsole
         private IAsyncServiceProvider _asyncServiceProvider;
 
         // TODO NK - Clearly understand the PMC scenario.
-        // TODO NK - Fix the build output channel, it shouldn't be cleaned, ever!
         // TODO NK - It's actually difficult to bring focus!
 
         [ImportingConstructor]
@@ -37,12 +36,11 @@ namespace NuGetConsole
             _hostProviders = hostProviders ?? throw new ArgumentNullException(nameof(hostProviders));
 
             _cachedOutputConsole = new Lazy<IConsole>(
-                () => new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName));
+                () => (IConsole) new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName));
         }
 
         public IOutputConsole CreateBuildOutputConsole()
         {
-            // Maybe this needs to be cached
             return new BuildChannelOutputConsole(_asyncServiceProvider, VSConstants.BuildOutput.ToString());
         }
 

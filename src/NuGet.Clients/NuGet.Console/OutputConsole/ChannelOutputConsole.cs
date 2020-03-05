@@ -3,11 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using System.Threading;
-using System.Windows.Media;
 using Microsoft;
 using Microsoft.ServiceHub.Framework;
 using Microsoft.VisualStudio;
@@ -20,7 +18,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace NuGetConsole
 {
-    internal class ChannelOutputConsole : IConsole, IConsoleDispatcher, IDisposable
+    internal class ChannelOutputConsole : SharedOutputConsole, IConsole, IConsoleDispatcher, IDisposable
     {
         private static readonly Encoding TextEncoding = Encoding.UTF8;
 
@@ -41,7 +39,7 @@ namespace NuGetConsole
             _outputName = outputName ?? throw new ArgumentNullException(nameof(outputName));
         }
 
-        public async Task CloseChannelAsync()
+        private async Task CloseChannelAsync()
         {
             using (await _pipeLock.EnterAsync())
             {
@@ -59,18 +57,20 @@ namespace NuGetConsole
             _serviceBrokerClient = new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
         }
 
-        public int ConsoleWidth => 120;
-
-        public void Activate()
+        public override void Activate()
         {
             // No-Op
         }
 
-        public void Clear()
+        public override void Clear()
         {
 #pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
             ClearThePaneAsync().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
+        }
+        public override void Write(string text)
+        {
+            NuGetUIThreadHelper.JoinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
         }
 
         private async Task WriteToOutputChannelAsync(string channelId, string displayNameResourceId, string content, CancellationToken cancellationToken)
@@ -117,40 +117,17 @@ namespace NuGetConsole
             return TextEncoding.GetBytes(content);
         }
 
-        public async Task SendOutputAsync(string message, CancellationToken cancellationToken)
+        private async Task SendOutputAsync(string message, CancellationToken cancellationToken)
         {
             await WriteToOutputChannelAsync(_channelId, _outputName, message, cancellationToken);
         }
 
-        public Task ClearThePaneAsync()
+        private Task ClearThePaneAsync()
         {
             return Task.CompletedTask;
             // TODO NK - Figure out how to clean the pane
             // await CloseChannelAsync();
             // await PrepareToSendOutputAsync(channelId, displayNameResourceId, cancellationToken);
-        }
-
-        public void Write(string text)
-        {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
-        }
-
-        public void Write(string text, Color? foreground, Color? background) => Write(text);
-
-        public void WriteBackspace()
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteLine(string text) => Write(text + Environment.NewLine);
-
-        public void WriteLine(string format, params object[] args)
-        {
-            WriteLine(string.Format(CultureInfo.CurrentCulture, format, args));
-        }
-
-        public void WriteProgress(string currentOperation, int percentComplete)
-        {
         }
 
         public void Start()

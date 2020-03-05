@@ -2,8 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Globalization;
-using System.Windows.Media;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Threading;
@@ -15,10 +13,8 @@ namespace NuGetConsole
     /// This class implements the IConsole interface in order to integrate with the PowerShellHost.
     /// It sends PowerShell host outputs to the VS Output tool window.
     /// </summary>
-    internal sealed class OutputConsole : IConsole, IConsoleDispatcher
+    internal sealed class OutputConsole : SharedOutputConsole, IConsoleDispatcher
     {
-        private const int DefaultConsoleWidth = 120;
-
         private readonly IVsOutputWindow _vsOutputWindow;
         private readonly IVsUIShell _vsUiShell;
         private readonly AsyncLazy<IVsOutputWindowPane> _outputWindowPane;
@@ -73,9 +69,7 @@ namespace NuGetConsole
 
         public IConsoleDispatcher Dispatcher => this;
 
-        public int ConsoleWidth => DefaultConsoleWidth;
-
-        public void Write(string text)
+        public override void Write(string text)
         {
             if (string.IsNullOrEmpty(text))
             {
@@ -92,32 +86,7 @@ namespace NuGetConsole
             });
         }
 
-        public void Write(string text, Color? foreground, Color? background)
-        {
-            // the Output window doesn't allow setting text color
-            Write(text);
-        }
-
-        public void WriteBackspace()
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteLine(string text)
-        {
-            Write(text + Environment.NewLine);
-        }
-
-        public void WriteLine(string format, params object[] args)
-        {
-            WriteLine(string.Format(CultureInfo.CurrentCulture, format, args));
-        }
-
-        public void WriteProgress(string operation, int percentComplete)
-        {
-        }
-
-        public void Activate()
+        public override void Activate()
         {
             NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
             {
@@ -132,7 +101,7 @@ namespace NuGetConsole
             });
         }
 
-        public void Clear()
+        public override void Clear()
         {
             Start();
 

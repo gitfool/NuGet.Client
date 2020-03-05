@@ -3,11 +3,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using System.Threading;
-using System.Windows.Media;
 using Microsoft;
 using Microsoft.ServiceHub.Framework;
 using Microsoft.VisualStudio;
@@ -20,7 +18,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace NuGetConsole
 {
-    internal class BuildChannelOutputConsole : IOutputConsole, IDisposable
+    internal class BuildChannelOutputConsole : SharedOutputConsole, IDisposable
     {
         private static readonly Encoding TextEncoding = Encoding.UTF8;
 
@@ -32,6 +30,7 @@ namespace NuGetConsole
 
         private ServiceBrokerClient _serviceBrokerClient;
         private PipeWriter _channelPipeWriter;
+        private bool _disposedValue = false;
 
         public BuildChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId)
         {
@@ -39,7 +38,25 @@ namespace NuGetConsole
             _channelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
         }
 
-        public async Task CloseChannelAsync()
+        public override void Activate()
+        {
+            ThrowIfDisposed();
+            // TODO NK 
+        }
+
+        public override void Clear()
+        {
+            ThrowIfDisposed();
+            // It's not our job to clear the build.
+        }
+
+        public override void Write(string text)
+        {
+            ThrowIfDisposed();
+            NuGetUIThreadHelper.JoinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
+        }
+
+        private async Task CloseChannelAsync()
         {
             using (await _pipeLock.EnterAsync())
             {
@@ -55,18 +72,6 @@ namespace NuGetConsole
             Assumes.Present(container);
             IServiceBroker sb = container.GetFullAccessServiceBroker();
             _serviceBrokerClient = new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
-        }
-
-        public int ConsoleWidth => 120;
-
-        public void Activate()
-        {
-            // No-Op
-        }
-
-        public void Clear()
-        {
-            // No Op - we never clear this.
         }
 
         private async Task WriteToOutputChannelAsync(string channelId, string content, CancellationToken cancellationToken)
@@ -114,46 +119,18 @@ namespace NuGetConsole
             return TextEncoding.GetBytes(content);
         }
 
-        public async Task SendOutputAsync(string message, CancellationToken cancellationToken)
+        private async Task SendOutputAsync(string message, CancellationToken cancellationToken)
         {
             await WriteToOutputChannelAsync(_channelId, message, cancellationToken);
         }
 
-        public Task ClearThePaneAsync()
+        private Task ClearThePaneAsync()
         {
             return Task.CompletedTask;
             // TODO NK - Figure out how to clean the pane
             // await CloseChannelAsync();
             // await PrepareToSendOutputAsync(channelId, displayNameResourceId, cancellationToken);
         }
-
-        public void Write(string text)
-        {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
-        }
-
-        public void Write(string text, Color? foreground, Color? background) => Write(text);
-
-        public void WriteBackspace()
-        {
-            throw new NotSupportedException();
-        }
-
-        public void WriteLine(string text) => Write(text + Environment.NewLine);
-
-        public void WriteLine(string format, params object[] args)
-        {
-            WriteLine(string.Format(CultureInfo.CurrentCulture, format, args));
-        }
-
-        public void WriteProgress(string currentOperation, int percentComplete)
-        {
-        }
-
-        public IConsoleDispatcher Dispatcher => throw new NotImplementedException();
-
-        // IDisposable
-        private bool _disposedValue = false;
 
         protected virtual void Dispose(bool disposing)
         {
@@ -174,6 +151,14 @@ namespace NuGetConsole
         public void Dispose()
         {
             Dispose(true);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposedValue)
+            {
+                throw new ObjectDisposedException(nameof(BuildChannelOutputConsole));
+            }
         }
     }
 }
