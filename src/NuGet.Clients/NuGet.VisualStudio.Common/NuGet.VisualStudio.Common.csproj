@@ -10,6 +10,7 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <RootNamespace>NuGet.VisualStudio</RootNamespace>
     <NoWarn>$(NoWarn);NU5104</NoWarn>
+    <Description>NuGet's Visual Studio common types and interfaces used for both Package Manager and Package Manager Console</Description>
   </PropertyGroup>
 
   <ItemGroup>
