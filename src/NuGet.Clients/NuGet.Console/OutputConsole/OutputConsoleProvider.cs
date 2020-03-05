@@ -42,7 +42,8 @@ namespace NuGetConsole
 
         public IOutputConsole CreateBuildOutputConsole()
         {
-            return new ChannelOutputConsole(_asyncServiceProvider, VSConstants.BuildOutput.ToString(), "Build");
+            // Maybe this needs to be cached
+            return new BuildChannelOutputConsole(_asyncServiceProvider, VSConstants.BuildOutput.ToString());
         }
 
         public IOutputConsole CreatePackageManagerConsole()

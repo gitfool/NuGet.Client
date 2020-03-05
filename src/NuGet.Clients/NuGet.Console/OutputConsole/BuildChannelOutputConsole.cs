@@ -20,7 +20,7 @@ using Task = System.Threading.Tasks.Task;
 
 namespace NuGetConsole
 {
-    internal class ChannelOutputConsole : IConsole, IConsoleDispatcher, IDisposable
+    internal class BuildChannelOutputConsole : IOutputConsole, IDisposable
     {
         private static readonly Encoding TextEncoding = Encoding.UTF8;
 
@@ -29,16 +29,14 @@ namespace NuGetConsole
 
         private readonly IAsyncServiceProvider _asyncServiceProvider;
         private readonly string _channelId;
-        private readonly string _outputName;
 
         private ServiceBrokerClient _serviceBrokerClient;
         private PipeWriter _channelPipeWriter;
 
-        public ChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId, string outputName)
+        public BuildChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId)
         {
             _asyncServiceProvider = asyncServiceProvider ?? throw new ArgumentNullException(nameof(asyncServiceProvider));
             _channelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
-            _outputName = outputName ?? throw new ArgumentNullException(nameof(outputName));
         }
 
         public async Task CloseChannelAsync()
@@ -53,9 +51,9 @@ namespace NuGetConsole
 
         private async Task AcquireServiceAsync()
         {
-            IBrokeredServiceContainer container = (IBrokeredServiceContainer) await _asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
+            IBrokeredServiceContainer container = (IBrokeredServiceContainer)await _asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
             Assumes.Present(container);
-            IServiceBroker sb = container.GetFullAccessServiceBroker(); // TODO NK - Check if this is even possible.
+            IServiceBroker sb = container.GetFullAccessServiceBroker();
             _serviceBrokerClient = new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
         }
 
@@ -68,12 +66,10 @@ namespace NuGetConsole
 
         public void Clear()
         {
-#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
-            ClearThePaneAsync().GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
+            // No Op - we never clear this.
         }
 
-        private async Task WriteToOutputChannelAsync(string channelId, string displayNameResourceId, string content, CancellationToken cancellationToken)
+        private async Task WriteToOutputChannelAsync(string channelId, string content, CancellationToken cancellationToken)
         {
             using (await _pipeLock.EnterAsync())
             {
@@ -87,7 +83,8 @@ namespace NuGetConsole
                     {
                         if (outputChannelStore.Proxy != null)
                         {
-                            await outputChannelStore.Proxy.CreateChannelAsync(channelId, displayNameResourceId, pipe.Reader, TextEncoding, cancellationToken);
+                            // TODO NK - does this work?
+                            await outputChannelStore.Proxy.CreateChannelAsync(channelId, "Build", pipe.Reader, TextEncoding, cancellationToken);
 
                             _channelPipeWriter = pipe.Writer;
 
@@ -119,7 +116,7 @@ namespace NuGetConsole
 
         public async Task SendOutputAsync(string message, CancellationToken cancellationToken)
         {
-            await WriteToOutputChannelAsync(_channelId, _outputName, message, cancellationToken);
+            await WriteToOutputChannelAsync(_channelId, message, cancellationToken);
         }
 
         public Task ClearThePaneAsync()
@@ -153,61 +150,7 @@ namespace NuGetConsole
         {
         }
 
-        public void Start()
-        {
-            if (!IsStartCompleted)
-            {
-                _ = AcquireServiceAsync(); // TODO NK
-                StartCompleted?.Invoke(this, EventArgs.Empty);
-            }
-
-            IsStartCompleted = true;
-        }
-
-        public event EventHandler StartCompleted;
-
-        event EventHandler IConsoleDispatcher.StartWaitingKey
-        {
-            add { }
-            remove { }
-        }
-
-        public bool IsStartCompleted { get; private set; }
-
-        public bool IsExecutingCommand
-        {
-            get { return false; }
-        }
-
-        public bool IsExecutingReadKey
-        {
-            get { throw new NotSupportedException(); }
-        }
-
-        public bool IsKeyAvailable
-        {
-            get { throw new NotSupportedException(); }
-        }
-
-        public void AcceptKeyInput()
-        {
-        }
-
-        public VsKeyInfo WaitKey()
-        {
-            throw new NotSupportedException();
-        }
-
-        public void ClearConsole()
-        {
-            Clear();
-        }
-
-        public IHost Host { get; set; }
-
-        public bool ShowDisclaimerHeader => false;
-
-        public IConsoleDispatcher Dispatcher => this;
+        public IConsoleDispatcher Dispatcher => throw new NotImplementedException();
 
         // IDisposable
         private bool _disposedValue = false;

@@ -54,6 +54,7 @@
     <Compile Include="ITabExpansion.cs" />
     <Compile Include="IWpfConsole.cs" />
     <Compile Include="IWpfConsoleService.cs" />
+    <Compile Include="OutputConsole\BuildChannelOutputConsole.cs" />
     <Compile Include="OutputConsole\ChannelOutputConsole.cs" />
     <Compile Include="OutputConsole\BuildOutputConsole.cs" />
     <Compile Include="OutputConsole\OutputConsole.cs" />
@@ -150,7 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.RpcContracts">
-      <Version>16.6.3-alpha</Version>
+      <Version>16.5.33-alpha</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.TextManager.Interop" Version="7.10.6071" />
     <PackageReference Include="Microsoft.VisualStudio.TextManager.Interop.10.0" Version="10.0.30319" />
