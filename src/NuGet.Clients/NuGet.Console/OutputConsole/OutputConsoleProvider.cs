@@ -21,7 +21,9 @@ namespace NuGetConsole
         private IAsyncServiceProvider _asyncServiceProvider;
 
         private readonly AsyncLazy<IVsOutputWindow> _vsOutputWindow;
+        private readonly AsyncLazy<IVsUIShell> _vsUIShell;
         private IVsOutputWindow VsOutputWindow => NuGetUIThreadHelper.JoinableTaskFactory.Run(_vsOutputWindow.GetValueAsync);
+        private IVsUIShell VsUIShell => NuGetUIThreadHelper.JoinableTaskFactory.Run(_vsUIShell.GetValueAsync);
 
         [ImportingConstructor]
         OutputConsoleProvider(
@@ -44,8 +46,15 @@ namespace NuGetConsole
                 },
                 NuGetUIThreadHelper.JoinableTaskFactory);
 
+            _vsUIShell = new AsyncLazy<IVsUIShell>(
+                async () =>
+                {
+                    return await asyncServiceProvider.GetServiceAsync<SVsUIShell, IVsUIShell>();
+                },
+                NuGetUIThreadHelper.JoinableTaskFactory);
+
             _cachedOutputConsole = new Lazy<IConsole>(
-                () => new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName));
+                () => new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName, VsUIShell, VsOutputWindow));
         }
 
         public IOutputConsole CreateBuildOutputConsole()
