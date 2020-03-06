@@ -5,9 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Linq;
-using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 using NuGet.VisualStudio;
+using IAsyncServiceProvider = Microsoft.VisualStudio.Shell.IAsyncServiceProvider;
 
 namespace NuGetConsole
 {
@@ -18,8 +20,8 @@ namespace NuGetConsole
         private readonly Lazy<IConsole> _cachedOutputConsole;
         private IAsyncServiceProvider _asyncServiceProvider;
 
-        // TODO NK - Clearly understand the PMC scenario.
-        // TODO NK - It's actually difficult to bring focus!
+        private readonly AsyncLazy<IVsOutputWindow> _vsOutputWindow;
+        private IVsOutputWindow VsOutputWindow => NuGetUIThreadHelper.JoinableTaskFactory.Run(_vsOutputWindow.GetValueAsync);
 
         [ImportingConstructor]
         OutputConsoleProvider(
@@ -35,14 +37,20 @@ namespace NuGetConsole
             _asyncServiceProvider = asyncServiceProvider ?? throw new ArgumentNullException(nameof(asyncServiceProvider));
             _hostProviders = hostProviders ?? throw new ArgumentNullException(nameof(hostProviders));
 
+            _vsOutputWindow = new AsyncLazy<IVsOutputWindow>(
+                async () =>
+                {
+                    return await asyncServiceProvider.GetServiceAsync<SVsOutputWindow, IVsOutputWindow>();
+                },
+                NuGetUIThreadHelper.JoinableTaskFactory);
+
             _cachedOutputConsole = new Lazy<IConsole>(
                 () => new ChannelOutputConsole(_asyncServiceProvider, GuidList.guidNuGetOutputWindowPaneGuid.ToString(), Resources.OutputConsolePaneName));
         }
 
         public IOutputConsole CreateBuildOutputConsole()
         {
-            // Maybe this needs to be cached
-            return new BuildChannelOutputConsole(_asyncServiceProvider, VSConstants.BuildOutput.ToString());
+            return new BuildOutputConsole(VsOutputWindow);
         }
 
         public IOutputConsole CreatePackageManagerConsole()

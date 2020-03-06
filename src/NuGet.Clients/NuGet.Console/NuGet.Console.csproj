@@ -55,7 +55,6 @@
     <Compile Include="IWpfConsole.cs" />
     <Compile Include="IWpfConsoleService.cs" />
     <Compile Include="OutputConsole\SharedOutputConsole.cs" />
-    <Compile Include="OutputConsole\BuildChannelOutputConsole.cs" />
     <Compile Include="OutputConsole\ChannelOutputConsole.cs" />
     <Compile Include="OutputConsole\BuildOutputConsole.cs" />
     <Compile Include="OutputConsole\OutputConsole.cs" />

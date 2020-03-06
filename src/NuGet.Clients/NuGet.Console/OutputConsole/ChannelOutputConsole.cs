@@ -79,7 +79,6 @@ namespace NuGetConsole
                         if (outputChannelStore.Proxy != null)
                         {
                             await outputChannelStore.Proxy.CreateChannelAsync(channelId, displayNameResourceId, pipe.Reader, TextEncoding, cancellationToken);
-
                             _channelPipeWriter = pipe.Writer;
 
                             // write any deferred messages
@@ -123,11 +122,9 @@ namespace NuGetConsole
             }
         }
 
-        private Task ClearThePaneAsync()
+        private async Task ClearThePaneAsync()
         {
-            return Task.CompletedTask;
-            // TODO NK - Figure out how to clean the pane
-            // await CloseChannelAsync();
+            await CloseChannelAsync();
             // await PrepareToSendOutputAsync(channelId, displayNameResourceId, cancellationToken);
         }
 
