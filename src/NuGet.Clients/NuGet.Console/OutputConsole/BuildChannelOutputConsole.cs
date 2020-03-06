@@ -25,17 +25,22 @@ namespace NuGetConsole
         private readonly List<string> _deferredOutputMessages = new List<string>();
         private readonly AsyncSemaphore _pipeLock = new AsyncSemaphore(1);
 
-        private readonly IAsyncServiceProvider _asyncServiceProvider;
         private readonly string _channelId;
 
-        private ServiceBrokerClient _serviceBrokerClient;
+        private AsyncLazy<ServiceBrokerClient> _serviceBrokerClient;
         private PipeWriter _channelPipeWriter;
         private bool _disposedValue = false;
 
         public BuildChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId)
         {
-            _asyncServiceProvider = asyncServiceProvider ?? throw new ArgumentNullException(nameof(asyncServiceProvider));
             _channelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
+            _serviceBrokerClient = new AsyncLazy<ServiceBrokerClient>(async () =>
+            {
+                IBrokeredServiceContainer container = (IBrokeredServiceContainer)await asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
+                Assumes.Present(container);
+                IServiceBroker sb = container.GetFullAccessServiceBroker();
+                return new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
+            }, NuGetUIThreadHelper.JoinableTaskFactory);
         }
 
         public override void Activate()
@@ -66,25 +71,15 @@ namespace NuGetConsole
             }
         }
 
-        private async Task AcquireServiceAsync()
-        {
-            IBrokeredServiceContainer container = (IBrokeredServiceContainer)await _asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
-            Assumes.Present(container);
-            IServiceBroker sb = container.GetFullAccessServiceBroker();
-            _serviceBrokerClient = new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
-        }
-
         private async Task WriteToOutputChannelAsync(string channelId, string content, CancellationToken cancellationToken)
         {
             using (await _pipeLock.EnterAsync())
             {
                 if (_channelPipeWriter == null)
                 {
-                    await AcquireServiceAsync();
-
                     var pipe = new Pipe();
 
-                    using (var outputChannelStore = await _serviceBrokerClient.GetProxyAsync<IOutputChannelStore>(VisualStudioServices.VS2019_4.OutputChannelStore, cancellationToken))
+                    using (var outputChannelStore = await (await _serviceBrokerClient.GetValueAsync()).GetProxyAsync<IOutputChannelStore>(VisualStudioServices.VS2019_4.OutputChannelStore, cancellationToken))
                     {
                         if (outputChannelStore.Proxy != null)
                         {
@@ -138,7 +133,10 @@ namespace NuGetConsole
             {
                 if (disposing)
                 {
-                    _serviceBrokerClient?.Dispose();
+                    if (_serviceBrokerClient.IsValueCreated)
+                    {
+                        _serviceBrokerClient.GetValue().Dispose();
+                    }
 #pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
                     CloseChannelAsync().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits

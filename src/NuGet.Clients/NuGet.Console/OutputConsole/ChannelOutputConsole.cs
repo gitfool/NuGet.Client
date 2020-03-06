@@ -25,36 +25,29 @@ namespace NuGetConsole
         private readonly List<string> _deferredOutputMessages = new List<string>();
         private readonly AsyncSemaphore _pipeLock = new AsyncSemaphore(1);
 
-        private readonly IAsyncServiceProvider _asyncServiceProvider;
         private readonly string _channelId;
         private readonly string _outputName;
 
-        private ServiceBrokerClient _serviceBrokerClient;
+        private AsyncLazy<ServiceBrokerClient> _serviceBrokerClient;
         private PipeWriter _channelPipeWriter;
+        private bool _disposedValue = false;
 
         public ChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId, string outputName)
         {
-            _asyncServiceProvider = asyncServiceProvider ?? throw new ArgumentNullException(nameof(asyncServiceProvider));
+            if (asyncServiceProvider == null)
+            {
+                throw new ArgumentNullException(nameof(asyncServiceProvider));
+            }
             _channelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
             _outputName = outputName ?? throw new ArgumentNullException(nameof(outputName));
-        }
 
-        private async Task CloseChannelAsync()
-        {
-            using (await _pipeLock.EnterAsync())
+            _serviceBrokerClient = new AsyncLazy<ServiceBrokerClient>(async () =>
             {
-                _channelPipeWriter?.CancelPendingFlush();
-                _channelPipeWriter?.Complete();
-                _channelPipeWriter = null;
-            }
-        }
-
-        private async Task AcquireServiceAsync()
-        {
-            IBrokeredServiceContainer container = (IBrokeredServiceContainer) await _asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
-            Assumes.Present(container);
-            IServiceBroker sb = container.GetFullAccessServiceBroker(); // TODO NK - Check if this is even possible.
-            _serviceBrokerClient = new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
+                IBrokeredServiceContainer container = (IBrokeredServiceContainer)await asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
+                Assumes.Present(container);
+                IServiceBroker sb = container.GetFullAccessServiceBroker();
+                return new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
+            }, NuGetUIThreadHelper.JoinableTaskFactory);
         }
 
         public override void Activate()
@@ -79,11 +72,9 @@ namespace NuGetConsole
             {
                 if (_channelPipeWriter == null)
                 {
-                    await AcquireServiceAsync();
-
                     var pipe = new Pipe();
 
-                    using (var outputChannelStore = await _serviceBrokerClient.GetProxyAsync<IOutputChannelStore>(VisualStudioServices.VS2019_4.OutputChannelStore, cancellationToken))
+                    using (var outputChannelStore = await (await _serviceBrokerClient.GetValueAsync()).GetProxyAsync<IOutputChannelStore>(VisualStudioServices.VS2019_4.OutputChannelStore, cancellationToken))
                     {
                         if (outputChannelStore.Proxy != null)
                         {
@@ -122,6 +113,16 @@ namespace NuGetConsole
             await WriteToOutputChannelAsync(_channelId, _outputName, message, cancellationToken);
         }
 
+        private async Task CloseChannelAsync()
+        {
+            using (await _pipeLock.EnterAsync())
+            {
+                _channelPipeWriter?.CancelPendingFlush();
+                _channelPipeWriter?.Complete();
+                _channelPipeWriter = null;
+            }
+        }
+
         private Task ClearThePaneAsync()
         {
             return Task.CompletedTask;
@@ -134,7 +135,7 @@ namespace NuGetConsole
         {
             if (!IsStartCompleted)
             {
-                _ = AcquireServiceAsync(); // TODO NK
+                _ = _serviceBrokerClient.GetValue(); // TODO NK
                 StartCompleted?.Invoke(this, EventArgs.Empty);
             }
 
@@ -186,16 +187,16 @@ namespace NuGetConsole
 
         public IConsoleDispatcher Dispatcher => this;
 
-        // IDisposable
-        private bool _disposedValue = false;
-
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposedValue)
             {
                 if (disposing)
                 {
-                    _serviceBrokerClient?.Dispose();
+                    if (_serviceBrokerClient.IsValueCreated)
+                    {
+                        _serviceBrokerClient.GetValue().Dispose();
+                    }
 #pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
                     CloseChannelAsync().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits

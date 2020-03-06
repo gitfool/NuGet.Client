@@ -31,7 +31,6 @@ namespace NuGetConsole
             _vsOutputWindow = vsOutputWindow;
         }
 
-
         public override void Activate()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
