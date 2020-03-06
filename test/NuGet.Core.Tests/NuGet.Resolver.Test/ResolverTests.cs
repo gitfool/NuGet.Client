@@ -15,6 +15,12 @@ namespace NuGet.Resolver.Test
     public class ResolverTests
     {
         [Fact]
+        public void AlwaysFail()
+        {
+            Assert.True(false);
+        }
+
+        [Fact]
         public void ResolveChooseBestMatchForDependencyBehavior()
         {
             // Arrange

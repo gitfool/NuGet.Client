@@ -655,14 +655,14 @@ jobs:
     demands: sh
 
   steps:
-  - task: PowerShell@2
-    displayName: "Update Build Number"
-    inputs:
-      targetType: "inline"
-      script: |
-        Write-Host "##vso[build.updatebuildnumber]$env:FULLVSTSBUILDNUMBER"
-      failOnStderr: "true"
-    condition: "always()"
+  # - task: PowerShell@2
+  #   displayName: "Update Build Number"
+  #   inputs:
+  #     targetType: "inline"
+  #     script: |
+  #       Write-Host "##vso[build.updatebuildnumber]$env:FULLVSTSBUILDNUMBER"
+  #     failOnStderr: "true"
+  #   condition: "always()"
 
   - task: ShellScript@2
     displayName: "Run Tests"
@@ -673,7 +673,7 @@ jobs:
       cwd: "$(Build.Repository.LocalPath)"
 
   - task: PublishBuildArtifacts@1
-    displayName: 'Publish test results'
+    displayName: 'Publish test results as artifact'
     inputs:
       ArtifactName: 'LinuxTestResults'
       ArtifactType: 'Container'
