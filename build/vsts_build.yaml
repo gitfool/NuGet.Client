@@ -644,12 +644,12 @@ jobs:
 #     condition: "always()"
 
 - job: Tests_On_Linux
-  dependsOn: Initialize_Build
+  # dependsOn: Initialize_Build
   timeoutInMinutes: 15
   variables:
-    FULLVSTSBUILDNUMBER: $[dependencies.Initialize_Build.outputs['updatebuildnumber.FullVstsBuildNumber']]
+    FULLVSTSBUILDNUMBER: 1
     MSBUILDDISABLENODEREUSE: 1
-  condition: "and(succeeded(),eq(variables['RunTestsOnLinux'], 'true')) "
+  # condition: "and(succeeded(),eq(variables['RunTestsOnLinux'], 'true')) "
   pool:
     vmImage: ubuntu-latest
     demands: sh
