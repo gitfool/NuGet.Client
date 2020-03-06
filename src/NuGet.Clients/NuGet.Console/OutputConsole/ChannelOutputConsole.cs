@@ -27,8 +27,10 @@ namespace NuGetConsole
         private readonly List<string> _deferredOutputMessages = new List<string>();
         private readonly AsyncSemaphore _pipeLock = new AsyncSemaphore(1);
 
+        private Guid _channelGuid;
         private readonly string _channelId;
         private readonly string _channelOutputName;
+        private readonly JoinableTaskFactory _joinableTaskFactory;
 
         private AsyncLazy<ServiceBrokerClient> _serviceBrokerClient;
         private PipeWriter _channelPipeWriter;
@@ -37,34 +39,36 @@ namespace NuGetConsole
         private readonly IVsUIShell _vsUiShell;
         private readonly IVsOutputWindow _vsOutputWindow;
         private readonly AsyncLazy<IVsOutputWindowPane> _outputWindowPane;
-        private IVsOutputWindowPane VsOutputWindowPane => NuGetUIThreadHelper.JoinableTaskFactory.Run(_outputWindowPane.GetValueAsync);
+        private IVsOutputWindowPane VsOutputWindowPane => _joinableTaskFactory.Run(_outputWindowPane.GetValueAsync);
 
-        public ChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, string channelId, string outputName, IVsUIShell ivsUIShell, IVsOutputWindow vsOutputWindow)
+        public ChannelOutputConsole(IAsyncServiceProvider asyncServiceProvider, Guid channelId, string outputName, JoinableTaskFactory joinableTaskFactory, IVsUIShell ivsUIShell, IVsOutputWindow vsOutputWindow)
         {
             if (asyncServiceProvider == null)
             {
                 throw new ArgumentNullException(nameof(asyncServiceProvider));
             }
-            _channelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
+            _channelGuid = channelId;
+            _channelId = _channelGuid.ToString();
             _channelOutputName = outputName ?? throw new ArgumentNullException(nameof(outputName));
+            _joinableTaskFactory = joinableTaskFactory ?? throw new ArgumentNullException(nameof(joinableTaskFactory));
 
             _serviceBrokerClient = new AsyncLazy<ServiceBrokerClient>(async () =>
             {
                 IBrokeredServiceContainer container = (IBrokeredServiceContainer)await asyncServiceProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
                 Assumes.Present(container);
                 IServiceBroker sb = container.GetFullAccessServiceBroker();
-                return new ServiceBrokerClient(sb, NuGetUIThreadHelper.JoinableTaskFactory);
-            }, NuGetUIThreadHelper.JoinableTaskFactory);
+                return new ServiceBrokerClient(sb, _joinableTaskFactory);
+            }, _joinableTaskFactory);
 
             _vsOutputWindow = vsOutputWindow ?? throw new ArgumentNullException(nameof(vsOutputWindow));
             _vsUiShell = ivsUIShell ?? throw new ArgumentNullException(nameof(ivsUIShell));
             _outputWindowPane = new AsyncLazy<IVsOutputWindowPane>(async () =>
             {
-                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await _joinableTaskFactory.SwitchToMainThreadAsync();
 
                 // create the Package Manager pane within the Output window
                 var hr = _vsOutputWindow.CreatePane(
-                    ref GuidList.guidNuGetOutputWindowPaneGuid,
+                    ref _channelGuid,
                     Resources.OutputConsolePaneName,
                     fInitVisible: 1,
                     fClearWithSolution: 0);
@@ -72,20 +76,20 @@ namespace NuGetConsole
 
                 IVsOutputWindowPane pane;
                 hr = _vsOutputWindow.GetPane(
-                    ref GuidList.guidNuGetOutputWindowPaneGuid,
+                    ref _channelGuid,
                     out pane);
                 ErrorHandler.ThrowOnFailure(hr);
 
                 return pane;
 
-            }, NuGetUIThreadHelper.JoinableTaskFactory);
+            }, _joinableTaskFactory);
         }
 
         public override void Activate()
         {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(async () =>
+            _joinableTaskFactory.Run(async () =>
             {
-                await NuGetUIThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                await _joinableTaskFactory.SwitchToMainThreadAsync();
 
                 _vsUiShell.FindToolWindow(0,
                     ref GuidList.guidVsWindowKindOutput,
@@ -105,7 +109,7 @@ namespace NuGetConsole
 
         public override void Write(string text)
         {
-            NuGetUIThreadHelper.JoinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
+            _joinableTaskFactory.Run(() => SendOutputAsync(text, CancellationToken.None));
         }
 
         private async Task WriteToOutputChannelAsync(string channelId, string displayNameResourceId, string content, CancellationToken cancellationToken)
@@ -173,7 +177,7 @@ namespace NuGetConsole
         {
             if (!IsStartCompleted)
             {
-                _ = NuGetUIThreadHelper.JoinableTaskFactory.Run(() => _serviceBrokerClient.GetValueAsync());
+                _ = _joinableTaskFactory.Run(() => _serviceBrokerClient.GetValueAsync());
                 StartCompleted?.Invoke(this, EventArgs.Empty);
             }
 
