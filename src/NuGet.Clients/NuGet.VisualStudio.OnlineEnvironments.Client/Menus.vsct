@@ -29,8 +29,7 @@
         <CommandFlag>DynamicVisibility</CommandFlag>
         <CommandFlag>DefaultInvisible</CommandFlag>
         <Strings>
-          <!-- TODO NK - remember to rename the command name. Consider changing it to something similar to the current one.-->
-          <ButtonText>Do NuGet stuff</ButtonText>
+          <ButtonText>RestoreNuGetPackages</ButtonText>
           <CommandName>SolutionExplorer.Project.RestoreNuGetPackages</CommandName>
           <CanonicalName>SolutionExplorer.Project.RestoreNuGetPackages</CanonicalName>
           <LocCanonicalName>SolutionExplorer.Project.RestoreNuGetPackages</LocCanonicalName>

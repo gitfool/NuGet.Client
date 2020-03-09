@@ -7,11 +7,11 @@ using Microsoft.VisualStudio.Shell;
 
 namespace NuGet.VisualStudio.OnlineEnvironments.Client
 {
-    [Guid(PackageGuid)]
+    [Guid(PackageGuidString)]
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     internal sealed class NuGetClientPackage : AsyncPackage
     {
-        public const string PackageGuid = "6431ADB1-9428-4173-A696-6DECA317034A";
+        public const string PackageGuidString = "6431ADB1-9428-4173-A696-6DECA317034A";
     }
 }
